@@ -37,5 +37,5 @@ springdoc:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:change-me-change-me}
+      secret: ${JWT_SECRET:0123456789abcdef0123456789abcdef}
       access-token-expiration-ms: 3600000

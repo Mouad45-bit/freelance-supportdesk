@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: supportdesk
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/supportdesk}
+    username: ${DB_USERNAME:supportdesk}
+    password: ${DB_PASSWORD:supportdesk}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jackson:
+    time-zone: UTC
+
+  web:
+    error:
+      include-message: never
+      include-binding-errors: never
+      include-stacktrace: never
+
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:change-me-change-me}
+      access-token-expiration-ms: 3600000

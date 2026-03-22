@@ -26,10 +26,10 @@ public class Ticket extends BaseEntity {
     @JoinColumn(name = "author_id",  nullable = false)
     private AppUser author;
     //
-    public Ticket(String title, String description, TicketStatus status, TicketPriority priority, AppUser author) {
+    public Ticket(String title, String description, TicketPriority priority, AppUser author) {
         this.title = title;
         this.description = description;
-        this.status = status;
+        this.status = TicketStatus.OPEN;
         this.priority = priority;
         this.author = author;
     }

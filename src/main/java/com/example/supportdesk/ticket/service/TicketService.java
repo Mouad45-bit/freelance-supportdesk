@@ -83,7 +83,7 @@ public class TicketService {
         return ticketRepository.findAll(spec, pageable).map(TicketResponse::from);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public TicketResponse updateTicketStatus(
             AppUserPrincipal principal,

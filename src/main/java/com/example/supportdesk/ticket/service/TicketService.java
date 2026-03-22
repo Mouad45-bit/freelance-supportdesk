@@ -6,6 +6,7 @@ import com.example.supportdesk.common.enums.UserRole;
 import com.example.supportdesk.security.principal.AppUserPrincipal;
 import com.example.supportdesk.ticket.dto.TicketCreateRequest;
 import com.example.supportdesk.ticket.dto.TicketResponse;
+import com.example.supportdesk.ticket.dto.TicketStatusUpdateRequest;
 import com.example.supportdesk.ticket.entity.Ticket;
 import com.example.supportdesk.ticket.repository.TicketRepository;
 import com.example.supportdesk.ticket.specification.TicketSpecifications;
@@ -76,6 +77,30 @@ public class TicketService {
         return ticketRepository.findAll(spec, pageable).map(TicketResponse::from);
     }
 
+    public TicketResponse updateTicketStatus(
+            AppUserPrincipal principal,
+            Long ticketId,
+            TicketStatusUpdateRequest request)
+    {
+        Ticket ticket = findTicketOrThrow(ticketId);
+        //
+        if (principal.getRole() == UserRole.USER) {
+            if (!ticket.getAuthor().getId().equals(principal.getId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "You can only update the status of your own tickets"
+                );
+            }
+        }
+
+        validateStatusTransition(ticket.getStatus(), request.status(), principal.getRole());
+
+        //
+        ticket.changeStatus(request.status());
+
+        return TicketResponse.from(ticketRepository.save(ticket));
+    }
+
     //
     private Ticket findTicketOrThrow(Long ticketId) {
         return ticketRepository.findById(ticketId)
@@ -118,5 +143,27 @@ public class TicketService {
 
         //
         return PageRequest.of(page, size, Sort.by(direction, effectiveSortBy));
+    }
+
+    private void validateStatusTransition(TicketStatus current, TicketStatus target, UserRole role) {
+        if (current == target) {
+            return;
+        }
+
+        if (role == UserRole.ADMIN) {
+            return;
+        }
+
+        //
+        boolean allowedForUser =
+                (current == TicketStatus.OPEN && target == TicketStatus.IN_PROGRESS)
+                        || (current == TicketStatus.IN_PROGRESS && target == TicketStatus.RESOLVED);
+
+        if (!allowedForUser) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid status transition for USER: " + current + " -> " + target
+            );
+        }
     }
 }

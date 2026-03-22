@@ -30,12 +30,12 @@ public class TicketController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/{tickedId}")
+    @GetMapping("/{ticketId}")
     public TicketResponse getTicketById(
-            @PathVariable Long tickedId,
+            @PathVariable Long ticketId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ticketService.getTicketById(principal, tickedId);
+        return ticketService.getTicketById(principal, ticketId);
     }
 
     @GetMapping

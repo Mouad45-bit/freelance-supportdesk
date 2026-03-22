@@ -2,5 +2,5 @@ logging:
   level:
     root: info
     com.example.supportdesk: debug
-    org.hibernate.sql: debug
+    org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace

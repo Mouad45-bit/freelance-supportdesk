@@ -35,7 +35,28 @@ public class TicketService {
         return TicketResponse.from(ticketRepository.save(ticket));
     }
 
+    public TicketResponse getTicketById(AppUserPrincipal principal, Long ticketId) {
+        Ticket ticket = findTicketOrThrow(ticketId);
+        enforceReadAccess(principal, ticket);
+        return TicketResponse.from(ticket);
+    }
+
     //
+    private Ticket findTicketOrThrow(Long ticketId) {
+        return ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+    }
+
+    private void enforceReadAccess(AppUserPrincipal principal, Ticket ticket) {
+        if (principal.getRole() == UserRole.ADMIN) {
+            return;
+        }
+
+        if (!ticket.getAuthor().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this ticket");
+        }
+    }
+
     private void requireUser(AppUserPrincipal principal) {
         if (principal.getRole() != UserRole.USER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only USER can perform this action");

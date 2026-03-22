@@ -19,7 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -28,9 +30,9 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final AppUserRepository appUserRepository;
     //
+    @Transactional
+    @PreAuthorize("hasRole('USER')")
     public TicketResponse createTicket(AppUserPrincipal principal, TicketCreateRequest request) {
-        requireUser(principal);
-
         AppUser author = appUserRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         //
@@ -44,12 +46,16 @@ public class TicketService {
         return TicketResponse.from(ticketRepository.save(ticket));
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public TicketResponse getTicketById(AppUserPrincipal principal, Long ticketId) {
         Ticket ticket = findTicketOrThrow(ticketId);
         enforceReadAccess(principal, ticket);
         return TicketResponse.from(ticket);
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public Page<TicketResponse> listTickets(
             AppUserPrincipal principal,
             TicketStatus status,
@@ -77,6 +83,8 @@ public class TicketService {
         return ticketRepository.findAll(spec, pageable).map(TicketResponse::from);
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public TicketResponse updateTicketStatus(
             AppUserPrincipal principal,
             Long ticketId,
@@ -84,13 +92,12 @@ public class TicketService {
     {
         Ticket ticket = findTicketOrThrow(ticketId);
         //
-        if (principal.getRole() == UserRole.USER) {
-            if (!ticket.getAuthor().getId().equals(principal.getId())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "You can only update the status of your own tickets"
-                );
-            }
+        if (principal.getRole() == UserRole.USER
+                && !ticket.getAuthor().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "You can only update the status of your own tickets"
+            );
         }
 
         validateStatusTransition(ticket.getStatus(), request.status(), principal.getRole());
@@ -101,9 +108,9 @@ public class TicketService {
         return TicketResponse.from(ticketRepository.save(ticket));
     }
 
+    @Transactional
+    @PreAuthorize("hasRole('USER')")
     public void deleteTicket(AppUserPrincipal principal, Long ticketId) {
-        requireUser(principal);
-        //
         Ticket ticket = findTicketOrThrow(ticketId);
 
         if (!ticket.getAuthor().getId().equals(principal.getId())) {
@@ -130,12 +137,6 @@ public class TicketService {
         }
     }
 
-    private void requireUser(AppUserPrincipal principal) {
-        if (principal.getRole() != UserRole.USER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only USER can perform this action");
-        }
-    }
-
     private Pageable buildPageable(int page,  int size, String sortBy, String sortDir) {
         if (page < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
@@ -145,7 +146,7 @@ public class TicketService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size must be between 1 and 100");
         }
         //
-        String effectiveSortBy = (sortBy != null || sortBy.isBlank()) ? "createdAt" : sortBy;
+        String effectiveSortBy = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
         if (!effectiveSortBy.equals("createdAt")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only createdAt sorting is allowed");
         }

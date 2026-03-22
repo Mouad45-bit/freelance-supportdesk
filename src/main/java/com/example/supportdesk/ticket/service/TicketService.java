@@ -1,14 +1,22 @@
 package com.example.supportdesk.ticket.service;
 
+import com.example.supportdesk.common.enums.TicketPriority;
+import com.example.supportdesk.common.enums.TicketStatus;
 import com.example.supportdesk.common.enums.UserRole;
 import com.example.supportdesk.security.principal.AppUserPrincipal;
 import com.example.supportdesk.ticket.dto.TicketCreateRequest;
 import com.example.supportdesk.ticket.dto.TicketResponse;
 import com.example.supportdesk.ticket.entity.Ticket;
 import com.example.supportdesk.ticket.repository.TicketRepository;
+import com.example.supportdesk.ticket.specification.TicketSpecifications;
 import com.example.supportdesk.user.entity.AppUser;
 import com.example.supportdesk.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,6 +49,33 @@ public class TicketService {
         return TicketResponse.from(ticket);
     }
 
+    public Page<TicketResponse> listTickets(
+            AppUserPrincipal principal,
+            TicketStatus status,
+            TicketPriority priority,
+            Long authorId,
+            String keyword,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = buildPageable(page, size, sortBy, sortDir);
+        //
+        Long effectiveAuthorId = principal.getRole() == UserRole.USER
+                ? principal.getId()
+                : authorId;
+
+        //
+        Specification<Ticket> spec = Specification
+                .where(TicketSpecifications.hasStatus(status))
+                .and(TicketSpecifications.hasPriority(priority))
+                .and(TicketSpecifications.hasAuthorId(effectiveAuthorId))
+                .and(TicketSpecifications.titleContains(keyword));
+        //
+        return ticketRepository.findAll(spec, pageable).map(TicketResponse::from);
+    }
+
     //
     private Ticket findTicketOrThrow(Long ticketId) {
         return ticketRepository.findById(ticketId)
@@ -61,5 +96,27 @@ public class TicketService {
         if (principal.getRole() != UserRole.USER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only USER can perform this action");
         }
+    }
+
+    private Pageable buildPageable(int page,  int size, String sortBy, String sortDir) {
+        if (page < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+        }
+
+        if (size < 1 || size > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size must be between 1 and 100");
+        }
+        //
+        String effectiveSortBy = (sortBy != null || sortBy.isBlank()) ? "createdAt" : sortBy;
+        if (!effectiveSortBy.equals("createdAt")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only createdAt sorting is allowed");
+        }
+
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        //
+        return PageRequest.of(page, size, Sort.by(direction, effectiveSortBy));
     }
 }

@@ -101,6 +101,19 @@ public class TicketService {
         return TicketResponse.from(ticketRepository.save(ticket));
     }
 
+    public void deleteTicket(AppUserPrincipal principal, Long ticketId) {
+        requireUser(principal);
+        //
+        Ticket ticket = findTicketOrThrow(ticketId);
+
+        if (!ticket.getAuthor().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own tickets");
+        }
+
+        //
+        ticketRepository.delete(ticket);
+    }
+
     //
     private Ticket findTicketOrThrow(Long ticketId) {
         return ticketRepository.findById(ticketId)

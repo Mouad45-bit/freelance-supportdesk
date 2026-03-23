@@ -79,6 +79,33 @@ public class CommentService {
                 .map(CommentResponse::from);
     }
 
+    @Transactional
+    @PreAuthorize("hasRole('USER')")
+    public CommentResponse updateComment(
+            AppUserPrincipal principal,
+            Long commentId,
+            CommentUpdateRequest request
+    ) {
+        TicketComment comment = findCommentOrThrow(commentId);
+
+        if (!comment.getAuthor().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own comments");
+        }
+        //
+        String newContent = request.content().trim();
+        boolean changed = comment.updateContent(newContent);
+
+        if (!changed) {
+            return CommentResponse.from(comment);
+        }
+
+        //
+        TicketComment saved = ticketCommentRepository.save(comment);
+        ticketCommentVersionRepository.save(TicketCommentVersion.fromCurrent(saved));
+
+        return CommentResponse.from(saved);
+    }
+
     //
     private AppUser findUserOrThrow(Long userId) {
         return appUserRepository.findById(userId)
@@ -88,6 +115,11 @@ public class CommentService {
     private Ticket findTicketOrThrow(Long ticketId) {
         return ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+    }
+
+    private TicketComment findCommentOrThrow(Long commentId) {
+        return ticketCommentRepository.findById(commentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
     }
 
     private void enforceTicketReadAccess(AppUserPrincipal principal, Ticket ticket) {

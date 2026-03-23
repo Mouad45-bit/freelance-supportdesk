@@ -3,6 +3,7 @@ package com.example.supportdesk.comment.service;
 import com.example.supportdesk.comment.dto.CommentCreateRequest;
 import com.example.supportdesk.comment.dto.CommentResponse;
 import com.example.supportdesk.comment.dto.CommentUpdateRequest;
+import com.example.supportdesk.comment.dto.CommentVersionResponse;
 import com.example.supportdesk.comment.entity.TicketComment;
 import com.example.supportdesk.comment.entity.TicketCommentVersion;
 import com.example.supportdesk.comment.repository.TicketCommentRepository;
@@ -122,6 +123,26 @@ public class CommentService {
         ticketCommentRepository.delete(comment);
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public Page<CommentVersionResponse> listVersions(
+            AppUserPrincipal principal,
+            Long commentId,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        TicketComment comment = findCommentOrThrow(commentId);
+        enforceTicketReadAccess(principal, comment.getTicket());
+
+        Pageable pageable = buildVersionsPageable(page, size, sortBy, sortDir);
+
+        //
+        return ticketCommentVersionRepository.findByCommentGroupId(comment.getCommentGroupId(), pageable)
+                .map(CommentVersionResponse::from);
+    }
+
     //
     private AppUser findUserOrThrow(Long userId) {
         return appUserRepository.findById(userId)
@@ -160,6 +181,28 @@ public class CommentService {
         String effectiveSortBy = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
         if (!effectiveSortBy.equals("createdAt")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only createdAt sorting is allowed");
+        }
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir)
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+
+        //
+        return PageRequest.of(page, size, Sort.by(direction, effectiveSortBy));
+    }
+
+    private Pageable buildVersionsPageable(int page, int size, String sortBy, String sortDir) {
+        if (page < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+        }
+
+        if (size < 1 || size > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Size must be between 1 and 100");
+        }
+        //
+        String effectiveSortBy = (sortBy == null || sortBy.isBlank()) ? "version" : sortBy;
+        if (!effectiveSortBy.equals("version")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only version sorting is allowed");
         }
 
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDir)

@@ -106,6 +106,22 @@ public class CommentService {
         return CommentResponse.from(saved);
     }
 
+    @Transactional
+    @PreAuthorize("hasRole('USER')")
+    public void deleteComment(
+            AppUserPrincipal principal,
+            Long commentId
+    ) {
+        TicketComment comment = findCommentOrThrow(commentId);
+
+        if (!comment.getAuthor().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own comments");
+        }
+
+        //
+        ticketCommentRepository.delete(comment);
+    }
+
     //
     private AppUser findUserOrThrow(Long userId) {
         return appUserRepository.findById(userId)

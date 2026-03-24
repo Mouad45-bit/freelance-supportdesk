@@ -207,7 +207,9 @@ public class TicketService {
 
     private void validateStatusTransition(TicketStatus current, TicketStatus target, UserRole role) {
         if (current == target) {
-            return;
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Ticket is already in status " + current.name()
+            );
         }
 
         if (role == UserRole.ADMIN) {

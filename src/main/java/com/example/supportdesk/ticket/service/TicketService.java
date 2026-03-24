@@ -1,8 +1,7 @@
 package com.example.supportdesk.ticket.service;
 
-import com.example.supportdesk.common.enums.TicketPriority;
-import com.example.supportdesk.common.enums.TicketStatus;
-import com.example.supportdesk.common.enums.UserRole;
+import com.example.supportdesk.audit.service.AuditLogService;
+import com.example.supportdesk.common.enums.*;
 import com.example.supportdesk.security.principal.AppUserPrincipal;
 import com.example.supportdesk.ticket.dto.TicketCreateRequest;
 import com.example.supportdesk.ticket.dto.TicketResponse;
@@ -24,11 +23,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class TicketService {
     private final TicketRepository ticketRepository;
     private final AppUserRepository appUserRepository;
+    //
+    private final AuditLogService auditLogService;
+
     //
     @Transactional
     @PreAuthorize("hasRole('USER')")
@@ -43,7 +47,22 @@ public class TicketService {
                 author
         );
 
-        return TicketResponse.from(ticketRepository.save(ticket));
+        Ticket saved = ticketRepository.save(ticket);
+
+        //
+        auditLogService.log(
+                AuditAction.CREATE,
+                AuditResourceType.TICKET,
+                saved.getId(),
+                principal.getId(),
+                Map.of(
+                        "title", saved.getTitle(),
+                        "priority", saved.getPriority().name(),
+                        "status", saved.getStatus().name()
+                )
+        );
+
+        return TicketResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -103,9 +122,25 @@ public class TicketService {
         validateStatusTransition(ticket.getStatus(), request.status(), principal.getRole());
 
         //
+        TicketStatus oldStatus = ticket.getStatus();
         ticket.changeStatus(request.status());
 
-        return TicketResponse.from(ticketRepository.save(ticket));
+        Ticket saved = ticketRepository.save(ticket);
+
+        //
+        auditLogService.log(
+                AuditAction.UPDATE,
+                AuditResourceType.TICKET,
+                saved.getId(),
+                principal.getId(),
+                Map.of(
+                        "field", "status",
+                        "oldValue", oldStatus.name(),
+                        "newValue", saved.getStatus().name()
+                )
+        );
+
+        return TicketResponse.from(saved);
     }
 
     @Transactional
@@ -118,6 +153,17 @@ public class TicketService {
         }
 
         //
+        auditLogService.log(
+                AuditAction.DELETE,
+                AuditResourceType.TICKET,
+                ticket.getId(),
+                principal.getId(),
+                Map.of(
+                        "title", ticket.getTitle(),
+                        "status", ticket.getStatus().name()
+                )
+        );
+
         ticketRepository.delete(ticket);
     }
 

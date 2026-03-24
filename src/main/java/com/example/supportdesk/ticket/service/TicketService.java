@@ -161,11 +161,14 @@ public class TicketService {
                 principal.getId(),
                 Map.of(
                         "title", ticket.getTitle(),
-                        "status", ticket.getStatus().name()
+                        "status", ticket.getStatus().name(),
+                        "softDelete", true
                 )
         );
 
-        ticketRepository.delete(ticket);
+        //
+        ticket.markDeleted();
+        ticketRepository.save(ticket);
     }
 
     //

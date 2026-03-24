@@ -28,8 +28,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
-    private AppUserRepository appUserRepository;
-    private JsonMapper jsonMapper;
+    private final AppUserRepository appUserRepository;
+    private final JsonMapper jsonMapper;
     //
     @Transactional
     public void log(

@@ -50,7 +50,7 @@ public class CommentService {
             CommentCreateRequest request
     ) {
         AppUser author = findUserOrThrow(principal.getId());
-        Ticket ticket = findTicketOrThrow(ticketId);
+        Ticket ticket = findActiveTicketOrThrow(ticketId);
 
         enforceTicketReadAccess(principal, ticket);
 
@@ -90,12 +90,17 @@ public class CommentService {
             String sortBy,
             String sortDir
     ) {
-        Ticket ticket = findTicketOrThrow(ticketId);
+        Ticket ticket = findTicketIncludingDeletedOrThrow(ticketId);
         enforceTicketReadAccess(principal, ticket);
 
         Pageable pageable = buildCommentsPageable(page, size, sortBy, sortDir);
 
         //
+        if (ticket.isDeleted()) {
+            return ticketCommentRepository.findByTicketId(ticketId, pageable)
+                    .map(CommentResponse::from);
+        }
+
         return ticketCommentRepository.findByTicketIdAndDeletedFalse(ticketId, pageable)
                 .map(CommentResponse::from);
     }
@@ -112,6 +117,8 @@ public class CommentService {
         if (!comment.getAuthor().getId().equals(principal.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own comments");
         }
+
+        ensureTicketNotDeletedForCommentMutation(comment);
         //
         String oldContent = comment.getContent();
 
@@ -159,6 +166,7 @@ public class CommentService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own comments");
         }
 
+        ensureTicketNotDeletedForCommentMutation(comment);
         //
         auditLogService.log(
                 AuditAction.DELETE,
@@ -203,8 +211,13 @@ public class CommentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    private Ticket findTicketOrThrow(Long ticketId) {
+    private Ticket findActiveTicketOrThrow(Long ticketId) {
         return ticketRepository.findByIdAndDeletedFalse(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+    }
+
+    private Ticket findTicketIncludingDeletedOrThrow(Long ticketId) {
+        return ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
     }
 
@@ -224,6 +237,15 @@ public class CommentService {
         //
         if (!ticket.getAuthor().getId().equals(principal.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied for this ticket");
+        }
+    }
+
+    private void ensureTicketNotDeletedForCommentMutation(TicketComment comment) {
+        if (comment.getTicket().isDeleted()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cannot modify or delete a comment of a deleted ticket"
+            );
         }
     }
 

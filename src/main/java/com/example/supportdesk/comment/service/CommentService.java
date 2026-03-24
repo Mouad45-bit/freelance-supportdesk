@@ -119,7 +119,9 @@ public class CommentService {
         boolean changed = comment.updateContent(newContent);
 
         if (!changed) {
-            return CommentResponse.from(comment);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Comment content is unchanged"
+            );
         }
 
         //

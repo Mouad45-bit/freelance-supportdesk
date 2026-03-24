@@ -96,7 +96,7 @@ public class CommentService {
         Pageable pageable = buildCommentsPageable(page, size, sortBy, sortDir);
 
         //
-        return ticketCommentRepository.findByTicketId(ticketId, pageable)
+        return ticketCommentRepository.findByTicketIdAndDeletedFalse(ticketId, pageable)
                 .map(CommentResponse::from);
     }
 
@@ -107,7 +107,7 @@ public class CommentService {
             Long commentId,
             CommentUpdateRequest request
     ) {
-        TicketComment comment = findCommentOrThrow(commentId);
+        TicketComment comment = findActiveCommentOrThrow(commentId);
 
         if (!comment.getAuthor().getId().equals(principal.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own comments");
@@ -153,7 +153,7 @@ public class CommentService {
             AppUserPrincipal principal,
             Long commentId
     ) {
-        TicketComment comment = findCommentOrThrow(commentId);
+        TicketComment comment = findActiveCommentOrThrow(commentId);
 
         if (!comment.getAuthor().getId().equals(principal.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own comments");
@@ -168,11 +168,13 @@ public class CommentService {
                 Map.of(
                         "ticketId", comment.getTicket().getId(),
                         "commentGroupId", comment.getCommentGroupId().toString(),
-                        "version", comment.getCurrentVersion()
+                        "version", comment.getCurrentVersion(),
+                        "softDelete", true
                 )
         );
 
-        ticketCommentRepository.delete(comment);
+        comment.markDeleted();
+        ticketCommentRepository.save(comment);
     }
 
     @Transactional(readOnly = true)
@@ -185,7 +187,7 @@ public class CommentService {
             String sortBy,
             String sortDir
     ) {
-        TicketComment comment = findCommentOrThrow(commentId);
+        TicketComment comment = findCommentIncludingDeletedOrThrow(commentId);
         enforceTicketReadAccess(principal, comment.getTicket());
 
         Pageable pageable = buildVersionsPageable(page, size, sortBy, sortDir);
@@ -206,7 +208,11 @@ public class CommentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
     }
 
-    private TicketComment findCommentOrThrow(Long commentId) {
+    private TicketComment findActiveCommentOrThrow(Long commentId) {
+        return ticketCommentRepository.findByIdAndDeletedFalse(commentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+    }
+    private TicketComment findCommentIncludingDeletedOrThrow(Long commentId) {
         return ticketCommentRepository.findById(commentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
     }

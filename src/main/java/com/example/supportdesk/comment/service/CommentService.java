@@ -1,5 +1,6 @@
 package com.example.supportdesk.comment.service;
 
+import com.example.supportdesk.audit.service.AuditLogService;
 import com.example.supportdesk.comment.dto.CommentCreateRequest;
 import com.example.supportdesk.comment.dto.CommentResponse;
 import com.example.supportdesk.comment.dto.CommentUpdateRequest;
@@ -8,6 +9,8 @@ import com.example.supportdesk.comment.entity.TicketComment;
 import com.example.supportdesk.comment.entity.TicketCommentVersion;
 import com.example.supportdesk.comment.repository.TicketCommentRepository;
 import com.example.supportdesk.comment.repository.TicketCommentVersionRepository;
+import com.example.supportdesk.common.enums.AuditAction;
+import com.example.supportdesk.common.enums.AuditResourceType;
 import com.example.supportdesk.common.enums.UserRole;
 import com.example.supportdesk.security.principal.AppUserPrincipal;
 import com.example.supportdesk.ticket.entity.Ticket;
@@ -25,6 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class CommentService {
@@ -33,6 +38,8 @@ public class CommentService {
     //
     private final TicketRepository ticketRepository;
     private final AppUserRepository appUserRepository;
+    //
+    private final AuditLogService auditLogService;
 
     //
     @Transactional
@@ -56,6 +63,19 @@ public class CommentService {
 
         TicketComment saved = ticketCommentRepository.save(comment);
         ticketCommentVersionRepository.save(TicketCommentVersion.fromCurrent(saved));
+
+        //
+        auditLogService.log(
+                AuditAction.CREATE,
+                AuditResourceType.COMMENT,
+                saved.getId(),
+                principal.getId(),
+                Map.of(
+                        "ticketId", saved.getTicket().getId(),
+                        "commentGroupId", saved.getCommentGroupId().toString(),
+                        "version", saved.getCurrentVersion()
+                )
+        );
 
         return CommentResponse.from(saved);
     }
@@ -93,6 +113,8 @@ public class CommentService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own comments");
         }
         //
+        String oldContent = comment.getContent();
+
         String newContent = request.content().trim();
         boolean changed = comment.updateContent(newContent);
 
@@ -103,6 +125,22 @@ public class CommentService {
         //
         TicketComment saved = ticketCommentRepository.save(comment);
         ticketCommentVersionRepository.save(TicketCommentVersion.fromCurrent(saved));
+
+        //
+        auditLogService.log(
+                AuditAction.UPDATE,
+                AuditResourceType.COMMENT,
+                saved.getId(),
+                principal.getId(),
+                Map.of(
+                        "ticketId", saved.getTicket().getId(),
+                        "commentGroupId", saved.getCommentGroupId().toString(),
+                        "oldVersion", saved.getCurrentVersion() - 1,
+                        "newVersion", saved.getCurrentVersion(),
+                        "oldContent", oldContent,
+                        "newContent", saved.getContent()
+                )
+        );
 
         return CommentResponse.from(saved);
     }
@@ -120,6 +158,18 @@ public class CommentService {
         }
 
         //
+        auditLogService.log(
+                AuditAction.DELETE,
+                AuditResourceType.COMMENT,
+                comment.getId(),
+                principal.getId(),
+                Map.of(
+                        "ticketId", comment.getTicket().getId(),
+                        "commentGroupId", comment.getCommentGroupId().toString(),
+                        "version", comment.getCurrentVersion()
+                )
+        );
+
         ticketCommentRepository.delete(comment);
     }
 

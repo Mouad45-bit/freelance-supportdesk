@@ -94,7 +94,8 @@ public class TicketService {
 
         //
         Specification<Ticket> spec = Specification
-                .where(TicketSpecifications.hasStatus(status))
+                .where(TicketSpecifications.isNotDeleted())
+                .and(TicketSpecifications.hasStatus(status))
                 .and(TicketSpecifications.hasPriority(priority))
                 .and(TicketSpecifications.hasAuthorId(effectiveAuthorId))
                 .and(TicketSpecifications.titleContains(keyword));

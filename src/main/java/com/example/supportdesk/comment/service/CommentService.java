@@ -202,7 +202,7 @@ public class CommentService {
     }
 
     private Ticket findTicketOrThrow(Long ticketId) {
-        return ticketRepository.findById(ticketId)
+        return ticketRepository.findByIdAndDeletedFalse(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
     }
 

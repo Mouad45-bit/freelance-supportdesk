@@ -9,6 +9,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Entity @Table(name = "tickets")
 @Getter @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Ticket extends BaseEntity {
@@ -25,6 +27,10 @@ public class Ticket extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id",  nullable = false)
     private AppUser author;
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
     //
     public Ticket(String title, String description, TicketPriority priority, AppUser author) {
         this.title = title;
@@ -32,9 +38,15 @@ public class Ticket extends BaseEntity {
         this.status = TicketStatus.OPEN;
         this.priority = priority;
         this.author = author;
+        this.deleted = false;
     }
 
     public void changeStatus(TicketStatus newStatus) {
         this.status = newStatus;
+    }
+
+    public void markDeleted() {
+        this.deleted = true;
+        this.deletedAt = Instant.now();
     }
 }

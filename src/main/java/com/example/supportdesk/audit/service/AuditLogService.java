@@ -78,7 +78,7 @@ public class AuditLogService {
                 .and(AuditLogSpecifications.hasActorId(effectiveActorId));
 
         return auditLogRepository.findAll(spec, pageable)
-                .map(AuditLogResponse::from);
+                .map(this::toResponse);
     }
 
     //
@@ -113,6 +113,31 @@ public class AuditLogService {
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to serialize audit details"
             );
+        }
+    }
+
+    private AuditLogResponse toResponse(AuditLog log) {
+        return new AuditLogResponse(
+                log.getId(),
+                log.getAction(),
+                log.getResourceType(),
+                log.getResourceId(),
+                log.getActor().getId(),
+                log.getActor().getUsername(),
+                log.getTimestamp(),
+                parseDetails(log.getDetails())
+        );
+    }
+
+    private Object parseDetails(String details) {
+        if (details == null || details.isBlank()) {
+            return null;
+        }
+        //
+        try {
+            return jsonMapper.readValue(details, Object.class);
+        } catch (Exception ex) {
+            return details;
         }
     }
 }

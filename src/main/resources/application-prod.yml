@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
+  level:
+    root: info
+    com.example.supportdesk: info
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn

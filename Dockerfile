@@ -19,7 +19,7 @@ WORKDIR /app
 
 RUN addgroup --system spring && adduser --system --ingroup spring spring
 
-COPY --form=build /workspace/target/*.jar /app/app.jar
+COPY --from=build /workspace/target/*.jar /app/app.jar
 
 USER spring:spring
 

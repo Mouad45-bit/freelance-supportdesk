@@ -1,12 +1,12 @@
 package com.example.supportdesk.integration.config;
 
+import com.example.supportdesk.integration.support.IntegrationDatabaseSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -43,34 +43,21 @@ public abstract class AbstractIntegrationTest {
     protected ObjectMapper objectMapper;
 
     @Autowired
-    protected JdbcTemplate jdbcTemplate;
+    protected IntegrationDatabaseSupport databaseSupport;
 
     //
     @BeforeEach
     void cleanDatabaseBeforeEach() {
-        truncateAllTables();
+        databaseSupport.cleanDatabase();
     }
 
     @AfterEach
     void cleanDatabaseAfterEach() {
-        truncateAllTables();
+        databaseSupport.cleanDatabase();
     }
 
     //
     protected String toJson(Object value) throws Exception {
         return objectMapper.writeValueAsString(value);
-    }
-
-    //
-    private void truncateAllTables() {
-        jdbcTemplate.execute("""
-                TRUNCATE TABLE
-                ticket_comment_versions,
-                ticket_comments,
-                audit_logs,
-                tickets,
-                app_users
-                RESTART IDENTITY CASCADE
-                """);
     }
 }

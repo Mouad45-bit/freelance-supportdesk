@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class IntegrationAuthSupport {
-    private JwtService jwtService;
+    private final JwtService jwtService;
     //
     public String generateAccessToken(AppUser user) {
         return jwtService.generateToken(AppUserPrincipal.from(user));

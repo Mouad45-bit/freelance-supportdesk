@@ -7,7 +7,8 @@ import com.example.supportdesk.integration.support.IntegrationTestDataFactory;
 import com.example.supportdesk.user.entity.AppUser;
 import com.example.supportdesk.user.repository.AppUserRepository;
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 

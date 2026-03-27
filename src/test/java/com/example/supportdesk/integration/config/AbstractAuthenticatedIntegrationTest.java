@@ -1,13 +1,11 @@
 package com.example.supportdesk.integration.config;
 
 import com.example.supportdesk.common.enums.UserRole;
-import com.example.supportdesk.security.principal.AppUserPrincipal;
-import com.example.supportdesk.security.service.JwtService;
+import com.example.supportdesk.integration.support.IntegrationAuthSupport;
+import com.example.supportdesk.integration.support.IntegrationTestDataFactory;
 import com.example.supportdesk.user.entity.AppUser;
-import com.example.supportdesk.user.repository.AppUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 public abstract class AbstractAuthenticatedIntegrationTest extends AbstractIntegrationTest {
     protected static final String USER_FULL_NAME = "Integration User";
@@ -20,13 +18,10 @@ public abstract class AbstractAuthenticatedIntegrationTest extends AbstractInteg
 
     //
     @Autowired
-    protected AppUserRepository appUserRepository;
+    protected IntegrationTestDataFactory dataFactory;
 
     @Autowired
-    protected PasswordEncoder passwordEncoder;
-
-    @Autowired
-    protected JwtService jwtService;
+    protected IntegrationAuthSupport authSupport;
 
     //
     protected AppUser user;
@@ -35,37 +30,31 @@ public abstract class AbstractAuthenticatedIntegrationTest extends AbstractInteg
     //
     @BeforeEach
     void setUpAuthenticatedUsers() {
-        user = createUser(USER_FULL_NAME, USER_USERNAME, USER_PASSWORD, UserRole.USER);
-        admin = createUser(ADMIN_FULL_NAME, ADMIN_USERNAME, ADMIN_PASSWORD, UserRole.ADMIN);
+        user = dataFactory.createUser(
+                USER_FULL_NAME,
+                USER_USERNAME,
+                USER_PASSWORD,
+                UserRole.USER
+        );
+        //
+        admin = dataFactory.createUser(
+                ADMIN_FULL_NAME,
+                ADMIN_USERNAME,
+                ADMIN_PASSWORD,
+                UserRole.ADMIN
+        );
     }
 
     //
     protected String userAccessToken() {
-        return jwtService.generateToken(AppUserPrincipal.from(user));
+        return authSupport.generateAccessToken(user);
     }
 
     protected String adminAccessToken() {
-        return jwtService.generateToken(AppUserPrincipal.from(admin));
+        return authSupport.generateAccessToken(admin);
     }
 
     protected String bearerToken(String accessToken) {
-        return "Bearer " + accessToken;
-    }
-
-    ////
-    private AppUser createUser(
-            String fullName,
-            String username,
-            String rawPassword,
-            UserRole role
-    ) {
-        return appUserRepository.save(
-                new AppUser(
-                        fullName,
-                        username,
-                        passwordEncoder.encode(rawPassword),
-                        role
-                )
-        );
+        return authSupport.bearerToken(accessToken);
     }
 }

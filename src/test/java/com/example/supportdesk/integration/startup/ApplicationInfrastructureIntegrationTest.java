@@ -55,7 +55,7 @@ public class ApplicationInfrastructureIntegrationTest extends AbstractIntegratio
                 UserRole.USER
         );
 
-        databaseSupport.flushAndClear();
+        databaseSupport.clearPersistenceContext();
 
         AppUser reloaded = appUserRepository.findById(saved.getId())
                 .orElseThrow();
@@ -94,7 +94,7 @@ public class ApplicationInfrastructureIntegrationTest extends AbstractIntegratio
                 UserRole.USER
         );
 
-        databaseSupport.flushAndClear();
+        databaseSupport.clearPersistenceContext();
 
         AppUser persisted = appUserRepository.findById(saved.getId())
                 .orElseThrow();

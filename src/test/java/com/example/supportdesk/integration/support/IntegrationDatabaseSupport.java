@@ -27,8 +27,7 @@ public class IntegrationDatabaseSupport {
                 """);
     }
 
-    public void flushAndClear() {
-        entityManager.flush();
+    public void clearPersistenceContext() {
         entityManager.clear();
     }
 

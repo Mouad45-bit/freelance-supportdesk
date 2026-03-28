@@ -172,7 +172,7 @@ public class AuthIntegrationTest extends AbstractAuthenticatedIntegrationTest {
     //
     @Test
     public void shouldRejectPasswordChangeWhenConfirmationDoesNotMatch() throws Exception {
-        mockMvc.perform(get("/api/auth/change-password")
+        mockMvc.perform(post("/api/auth/change-password")
                         .header("Authorization", bearerToken(userAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(new ChangePasswordRequest(
@@ -187,7 +187,7 @@ public class AuthIntegrationTest extends AbstractAuthenticatedIntegrationTest {
 
     @Test
     public void shouldRejectPasswordChangeWhenCurrentPasswordIsIncorrect() throws Exception {
-        mockMvc.perform(get("/api/auth/change-password")
+        mockMvc.perform(post("/api/auth/change-password")
                         .header("Authorization", bearerToken(userAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(new ChangePasswordRequest(
@@ -202,7 +202,7 @@ public class AuthIntegrationTest extends AbstractAuthenticatedIntegrationTest {
 
     @Test
     public void shouldRejectPasswordChangeWhenNewPasswordMatchesCurrentPassword() throws Exception {
-        mockMvc.perform(get("/api/auth/change-password")
+        mockMvc.perform(post("/api/auth/change-password")
                         .header("Authorization", bearerToken(userAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(new ChangePasswordRequest(
@@ -217,7 +217,7 @@ public class AuthIntegrationTest extends AbstractAuthenticatedIntegrationTest {
 
     @Test
     public void shouldRejectPasswordChangeWithoutJwt() throws Exception {
-        mockMvc.perform(get("/api/auth/change-password")
+        mockMvc.perform(post("/api/auth/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(new ChangePasswordRequest(
                                 USER_PASSWORD,

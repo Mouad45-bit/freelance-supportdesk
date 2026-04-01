@@ -192,6 +192,7 @@ public class TicketCreateIntegrationTest extends AbstractTicketIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for priority"))
                 .andExpect(jsonPath("$.path").value("/api/tickets"));
     }
 }

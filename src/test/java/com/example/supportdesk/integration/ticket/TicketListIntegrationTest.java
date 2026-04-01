@@ -163,6 +163,27 @@ public class TicketListIntegrationTest extends AbstractTicketIntegrationTest {
     }
 
     @Test
+    public void shouldRejectFilterTicketsWithInvalidAuthorIdForUser() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("authorId", "abc")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for author id"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
+
+    @Test
+    public void shouldRejectFilterTicketsWithInvalidAuthorIdForAdmin() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("authorId", "abc")
+                        .header("Authorization", bearerToken(adminAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for author id"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
+
+    //
+    @Test
     public void shouldIgnoreNonExistingAuthorIdFilterForUserAndStillReturnOwnTickets() throws Exception {
         AppUser otherUser = createOtherUser();
         //
@@ -221,7 +242,7 @@ public class TicketListIntegrationTest extends AbstractTicketIntegrationTest {
                         .param("page", "-1")
                         .header("Authorization", bearerToken(userAccessToken())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Page index must be >= 0"))
+                .andExpect(jsonPath("$.message").value("Page index must be positive"))
                 .andExpect(jsonPath("$.path").value("/api/tickets"));
     }
 

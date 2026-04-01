@@ -148,11 +148,19 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException ex,
             HttpServletRequest request
     ) {
+        String message = "Invalid request parameter";
+
+        if ("status".equals(ex.getName())) {
+            message = "Invalid value for status";
+        } else if ("priority".equals(ex.getName())) {
+            message = "Invalid value for priority";
+        }
+
         ApiErrorResponse body = new ApiErrorResponse(
                 Instant.now(),
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Invalid path variable type",
+                message,
                 request.getRequestURI(),
                 null
         );

@@ -189,7 +189,7 @@ public class TicketService {
 
     private Pageable buildPageable(int page,  int size, String sortBy, String sortDir) {
         if (page < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be positive");
         }
 
         if (size < 1 || size > 100) {

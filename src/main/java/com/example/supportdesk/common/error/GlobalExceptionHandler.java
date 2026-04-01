@@ -125,6 +125,9 @@ public class GlobalExceptionHandler {
         if (ex.getMostSpecificCause().getMessage() != null &&
                 ex.getMostSpecificCause().getMessage().contains("TicketPriority")) {
             message = "Invalid value for priority";
+        } else if (ex.getMostSpecificCause().getMessage() != null &&
+                ex.getMostSpecificCause().getMessage().contains("TicketStatus")) {
+            message = "Invalid value for status";
         }
 
         ApiErrorResponse body = new ApiErrorResponse(

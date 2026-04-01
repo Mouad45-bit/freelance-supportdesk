@@ -121,16 +121,18 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         String message = "Malformed request body";
+        //
+        Throwable cause = ex.getMostSpecificCause();
+        String causeMessage = cause != null ? cause.getMessage() : null;
 
-        ex.getMostSpecificCause();
-        if (ex.getMostSpecificCause().getMessage() != null &&
-                ex.getMostSpecificCause().getMessage().contains("TicketPriority")) {
+        //
+        if (causeMessage != null && causeMessage.contains("TicketPriority")) {
             message = "Invalid value for priority";
-        } else if (ex.getMostSpecificCause().getMessage() != null &&
-                ex.getMostSpecificCause().getMessage().contains("TicketStatus")) {
+        } else if (causeMessage != null && causeMessage.contains("TicketStatus")) {
             message = "Invalid value for status";
         }
 
+        //
         ApiErrorResponse body = new ApiErrorResponse(
                 Instant.now(),
                 HttpStatus.BAD_REQUEST.value(),
@@ -149,13 +151,22 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         String message = "Invalid request parameter";
-
-        if ("status".equals(ex.getName())) {
+        //
+        if ("ticketId".equals(ex.getName()) || "commentId".equals(ex.getName())) {
+            message = "Invalid path variable type";
+        } else if ("status".equals(ex.getName())) {
             message = "Invalid value for status";
         } else if ("priority".equals(ex.getName())) {
             message = "Invalid value for priority";
+        } else if ("authorId".equals(ex.getName())) {
+            message = "Invalid value for author id";
+        } else if ("page".equals(ex.getName())) {
+            message = "Invalid value for page";
+        } else if ("size".equals(ex.getName())) {
+            message = "Invalid value for size";
         }
 
+        //
         ApiErrorResponse body = new ApiErrorResponse(
                 Instant.now(),
                 HttpStatus.BAD_REQUEST.value(),

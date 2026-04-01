@@ -148,7 +148,7 @@ public class TicketListIntegrationTest extends AbstractTicketIntegrationTest {
                         .param("status", "INVALID_STATUS")
                         .header("Authorization", bearerToken(userAccessToken())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.message").value("Invalid value for status"))
                 .andExpect(jsonPath("$.path").value("/api/tickets"));
     }
 
@@ -158,7 +158,7 @@ public class TicketListIntegrationTest extends AbstractTicketIntegrationTest {
                         .param("priority", "URGENT")
                         .header("Authorization", bearerToken(userAccessToken())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.message").value("Invalid value for priority"))
                 .andExpect(jsonPath("$.path").value("/api/tickets"));
     }
 

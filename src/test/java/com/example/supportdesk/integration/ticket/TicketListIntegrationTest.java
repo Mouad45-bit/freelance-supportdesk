@@ -1,38 +1,254 @@
 package com.example.supportdesk.integration.ticket;
 
+import com.example.supportdesk.common.enums.TicketPriority;
+import com.example.supportdesk.common.enums.TicketStatus;
+import com.example.supportdesk.user.entity.AppUser;
+import org.junit.jupiter.api.Test;
+
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 public class TicketListIntegrationTest extends AbstractTicketIntegrationTest {
     ////
-    public void shouldListOnlyOwnTicketsForUser() throws Exception {}
+    @Test
+    public void shouldListOnlyOwnTicketsForUser() throws Exception {
+        AppUser otherUser = createOtherUser();
+        //
+        dataFactory.createTicket(user, "My ticket", "Mine", TicketPriority.LOW);
+        dataFactory.createTicket(otherUser, "Other ticket", "Not mine", TicketPriority.HIGH);
 
-    public void shouldListAllTicketsForAdmin() throws Exception {}
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].authorId").value(user.getId()))
+                .andExpect(jsonPath("$.content[0].authorUsername").value(USER_USERNAME));
+    }
+
+    @Test
+    public void shouldListAllTicketsForAdmin() throws Exception {
+        AppUser otherUser = createOtherUser();
+        //
+        dataFactory.createTicket(user, "User ticket", "Mine", TicketPriority.LOW);
+        dataFactory.createTicket(otherUser, "Other ticket", "Other", TicketPriority.HIGH);
+
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .header("Authorization", bearerToken(adminAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(2)))
+                .andExpect(jsonPath("$.content.length()").value(2));
+    }
 
     ////
-    public void shouldExcludeSoftDeletedTicketsFromListing() throws Exception {}
+    @Test
+    public void shouldExcludeSoftDeletedTicketsFromListing() throws Exception {
+        dataFactory.createTicket(user, "Active ticket", "Active desc", TicketPriority.LOW);
+        dataFactory.createDeletedTicket(user, "Deleted ticket", "Deleted desc", TicketPriority.HIGH, TicketStatus.OPEN);
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Active ticket"));
+    }
 
-    public void shouldRejectTicketListingWithoutJwt() throws Exception {}
+    @Test
+    public void shouldRejectTicketListingWithoutJwt() throws Exception {
+        mockMvc.perform(get("/api/tickets"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Authentication is required"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
 
     ////
-    public void shouldFilterTicketsByStatus() throws Exception {}
+    @Test
+    public void shouldFilterTicketsByStatus() throws Exception {
+        dataFactory.createTicket(user, "Open ticket", "Open desc", TicketPriority.LOW, TicketStatus.OPEN);
+        dataFactory.createTicket(user, "Resolved ticket", "Resolved desc", TicketPriority.LOW, TicketStatus.RESOLVED);
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("status", "RESOLVED")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].status").value("RESOLVED"))
+                .andExpect(jsonPath("$.content[0].title").value("Resolved ticket"));
+    }
 
-    public void shouldFilterTicketsByPriority() throws Exception {}
+    @Test
+    public void shouldFilterTicketsByPriority() throws Exception {
+        dataFactory.createTicket(user, "Low ticket", "Low desc", TicketPriority.LOW);
+        dataFactory.createTicket(user, "High ticket", "High desc", TicketPriority.HIGH);
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("priority", "HIGH")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].priority").value("HIGH"))
+                .andExpect(jsonPath("$.content[0].title").value("High ticket"));
+    }
 
-    public void shouldFilterTicketsByKeyword() throws Exception {}
+    @Test
+    public void shouldFilterTicketsByKeyword() throws Exception {
+        dataFactory.createTicket(user, "Printer issue", "Printer broken", TicketPriority.MEDIUM);
+        dataFactory.createTicket(user, "Laptop issue", "Laptop broken", TicketPriority.MEDIUM);
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("keyword", "printer")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Printer issue"));
+    }
 
     //
-    public void shouldFilterTicketsByAuthorIdForAdmin() throws Exception {}
+    @Test
+    public void shouldFilterTicketsByAuthorIdForAdmin() throws Exception {
+        AppUser otherUser = createOtherUser();
+        //
+        dataFactory.createTicket(user, "User ticket", "Mine", TicketPriority.LOW);
+        dataFactory.createTicket(otherUser, "Other ticket", "Other", TicketPriority.HIGH);
 
-    public void shouldIgnoreAuthorIdFilterForUserAndStillReturnOnlyOwnTickets() throws Exception {}
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("authorId", otherUser.getId().toString())
+                        .header("Authorization", bearerToken(adminAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].authorId").value(otherUser.getId()))
+                .andExpect(jsonPath("$.content[0].title").value("Other ticket"));
+    }
+
+    @Test
+    public void shouldIgnoreAuthorIdFilterForUserAndStillReturnOnlyOwnTickets() throws Exception {
+        AppUser otherUser = createOtherUser();
+        //
+        dataFactory.createTicket(user, "My ticket", "Mine", TicketPriority.LOW);
+        dataFactory.createTicket(otherUser, "Other ticket", "Other", TicketPriority.HIGH);
+
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("authorId", otherUser.getId().toString())
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].authorId").value(user.getId()))
+                .andExpect(jsonPath("$.content[0].title").value("My ticket"));
+    }
 
     //
-    public void shouldRejectFilterTicketsWithInvalidParam() throws Exception {}
+    @Test
+    public void shouldRejectFilterTicketsWithInvalidStatus() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("status", "INVALID_STATUS")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
+
+    @Test
+    public void shouldRejectFilterTicketsWithInvalidPriority() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("priority", "URGENT")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
+
+    @Test
+    public void shouldIgnoreNonExistingAuthorIdFilterForUserAndStillReturnOwnTickets() throws Exception {
+        AppUser otherUser = createOtherUser();
+        //
+        dataFactory.createTicket(user, "My ticket", "Mine", TicketPriority.LOW);
+        dataFactory.createTicket(otherUser, "Other ticket", "Other", TicketPriority.HIGH);
+
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("authorId", "999999")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].authorId").value(user.getId()))
+                .andExpect(jsonPath("$.content[0].title").value("My ticket"));
+    }
+
+    @Test
+    public void shouldReturnEmptyListWhenFilteringByNonExistingAuthorIdAsAdmin() throws Exception {
+        dataFactory.createTicket(user, "User ticket", "Mine", TicketPriority.LOW);
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("authorId", "999999")
+                        .header("Authorization", bearerToken(adminAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
 
     ////
-    public void shouldReturnPagedTicketsWithValidPagination() throws Exception {}
+    @Test
+    public void shouldReturnPagedTicketsWithValidPagination() throws Exception {
+
+        dataFactory.createTicket(user, "Ticket 1", "Desc 1", TicketPriority.LOW);
+        dataFactory.createTicket(user, "Ticket 2", "Desc 2", TicketPriority.MEDIUM);
+        dataFactory.createTicket(user, "Ticket 3", "Desc 3", TicketPriority.HIGH);
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("page", "0")
+                        .param("size", "2")
+                        .param("sortBy", "createdAt")
+                        .param("sortDir", "desc")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content.length()").value(2));
+    }
 
     //
-    public void shouldRejectTicketListingWithNegativePage() throws Exception {}
+    @Test
+    public void shouldRejectTicketListingWithNegativePage() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("page", "-1")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Page index must be >= 0"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
 
-    public void shouldRejectTicketListingWithInvalidSize() throws Exception {}
+    @Test
+    public void shouldRejectTicketListingWithInvalidSize() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("size", "0")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Size must be between 1 and 100"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+        //
+        mockMvc.perform(get("/api/tickets")
+                        .param("size", "101")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Size must be between 1 and 100"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
 
-    public void shouldRejectTicketListingWithUnsupportedSortBy() throws Exception {}
+    @Test
+    public void shouldRejectTicketListingWithUnsupportedSortBy() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .param("sortBy", "title")
+                        .header("Authorization", bearerToken(userAccessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Only createdAt sorting is allowed"))
+                .andExpect(jsonPath("$.path").value("/api/tickets"));
+    }
 }

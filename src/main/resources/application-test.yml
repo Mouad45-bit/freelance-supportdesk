@@ -1,0 +1,43 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jackson:
+    time-zone: UTC
+
+server:
+  port: 0
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: warn
+    com.example.supportdesk: info
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
+
+app:
+  security:
+    jwt:
+      secret: 0123456789abcdef0123456789abcdef0123456789abcdef
+      access-token-expiration-ms: 3600000

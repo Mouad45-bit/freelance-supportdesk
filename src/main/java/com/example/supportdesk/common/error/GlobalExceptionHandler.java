@@ -160,6 +160,12 @@ public class GlobalExceptionHandler {
             message = "Invalid value for priority";
         } else if ("authorId".equals(ex.getName())) {
             message = "Invalid value for author id";
+        } else if ("action".equals(ex.getName())) {
+            message = "Invalid value for action";
+        } else if ("resourceType".equals(ex.getName())) {
+            message = "Invalid value for resource type";
+        } else if ("actorId".equals(ex.getName())) {
+            message = "Invalid value for actor id";
         } else if ("page".equals(ex.getName())) {
             message = "Invalid value for page";
         } else if ("size".equals(ex.getName())) {

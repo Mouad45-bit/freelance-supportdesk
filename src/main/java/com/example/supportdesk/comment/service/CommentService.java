@@ -251,7 +251,7 @@ public class CommentService {
 
     private Pageable buildCommentsPageable(int page, int size, String sortBy, String sortDir) {
         if (page < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be positive");
         }
 
         if (size < 1 || size > 100) {
@@ -260,7 +260,7 @@ public class CommentService {
         //
         String effectiveSortBy = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
         if (!effectiveSortBy.equals("createdAt")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only createdAt sorting is allowed");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only 'created at' sorting is allowed");
         }
 
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDir)

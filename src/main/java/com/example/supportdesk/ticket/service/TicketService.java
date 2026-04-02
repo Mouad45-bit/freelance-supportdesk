@@ -94,7 +94,8 @@ public class TicketService {
 
         //
         Specification<Ticket> spec = Specification
-                .where(TicketSpecifications.hasStatus(status))
+                .where(TicketSpecifications.isNotDeleted())
+                .and(TicketSpecifications.hasStatus(status))
                 .and(TicketSpecifications.hasPriority(priority))
                 .and(TicketSpecifications.hasAuthorId(effectiveAuthorId))
                 .and(TicketSpecifications.titleContains(keyword));
@@ -160,16 +161,19 @@ public class TicketService {
                 principal.getId(),
                 Map.of(
                         "title", ticket.getTitle(),
-                        "status", ticket.getStatus().name()
+                        "status", ticket.getStatus().name(),
+                        "softDelete", true
                 )
         );
 
-        ticketRepository.delete(ticket);
+        //
+        ticket.markDeleted();
+        ticketRepository.save(ticket);
     }
 
     //
     private Ticket findTicketOrThrow(Long ticketId) {
-        return ticketRepository.findById(ticketId)
+        return ticketRepository.findByIdAndDeletedFalse(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
     }
 
@@ -185,7 +189,7 @@ public class TicketService {
 
     private Pageable buildPageable(int page,  int size, String sortBy, String sortDir) {
         if (page < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be positive");
         }
 
         if (size < 1 || size > 100) {

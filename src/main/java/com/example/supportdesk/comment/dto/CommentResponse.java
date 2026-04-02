@@ -13,6 +13,8 @@ public record CommentResponse(
         Long authorId,
         String authorUsername,
         Long ticketId,
+        boolean deleted,
+        Instant deletedAt,
         Instant createdAt,
         Instant updatedAt
 
@@ -26,6 +28,8 @@ public record CommentResponse(
                 comment.getAuthor().getId(),
                 comment.getAuthor().getUsername(),
                 comment.getTicket().getId(),
+                comment.isDeleted(),
+                comment.getDeletedAt(),
                 comment.getCreatedAt(),
                 comment.getUpdatedAt()
         );

@@ -4,11 +4,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -93,6 +96,93 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(statusCode).body(body);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(
+            AccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse body = new ApiErrorResponse(
+                Instant.now(),
+                HttpStatus.FORBIDDEN.value(),
+                HttpStatus.FORBIDDEN.getReasonPhrase(),
+                "Access denied",
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadableMessage(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        String message = "Malformed request body";
+        //
+        Throwable cause = ex.getMostSpecificCause();
+        String causeMessage = cause != null ? cause.getMessage() : null;
+
+        //
+        if (causeMessage != null && causeMessage.contains("TicketPriority")) {
+            message = "Invalid value for priority";
+        } else if (causeMessage != null && causeMessage.contains("TicketStatus")) {
+            message = "Invalid value for status";
+        }
+
+        //
+        ApiErrorResponse body = new ApiErrorResponse(
+                Instant.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                message,
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request
+    ) {
+        String message = "Invalid request parameter";
+        //
+        if ("ticketId".equals(ex.getName()) || "commentId".equals(ex.getName())) {
+            message = "Invalid path variable type";
+        } else if ("status".equals(ex.getName())) {
+            message = "Invalid value for status";
+        } else if ("priority".equals(ex.getName())) {
+            message = "Invalid value for priority";
+        } else if ("authorId".equals(ex.getName())) {
+            message = "Invalid value for author id";
+        } else if ("action".equals(ex.getName())) {
+            message = "Invalid value for action";
+        } else if ("resourceType".equals(ex.getName())) {
+            message = "Invalid value for resource type";
+        } else if ("actorId".equals(ex.getName())) {
+            message = "Invalid value for actor id";
+        } else if ("page".equals(ex.getName())) {
+            message = "Invalid value for page";
+        } else if ("size".equals(ex.getName())) {
+            message = "Invalid value for size";
+        }
+
+        //
+        ApiErrorResponse body = new ApiErrorResponse(
+                Instant.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                message,
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(Exception.class)

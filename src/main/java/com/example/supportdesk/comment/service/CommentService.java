@@ -50,7 +50,7 @@ public class CommentService {
             CommentCreateRequest request
     ) {
         AppUser author = findUserOrThrow(principal.getId());
-        Ticket ticket = findTicketOrThrow(ticketId);
+        Ticket ticket = findActiveTicketOrThrow(ticketId);
 
         enforceTicketReadAccess(principal, ticket);
 
@@ -90,13 +90,18 @@ public class CommentService {
             String sortBy,
             String sortDir
     ) {
-        Ticket ticket = findTicketOrThrow(ticketId);
+        Ticket ticket = findTicketIncludingDeletedOrThrow(ticketId);
         enforceTicketReadAccess(principal, ticket);
 
         Pageable pageable = buildCommentsPageable(page, size, sortBy, sortDir);
 
         //
-        return ticketCommentRepository.findByTicketId(ticketId, pageable)
+        if (ticket.isDeleted()) {
+            return ticketCommentRepository.findByTicketId(ticketId, pageable)
+                    .map(CommentResponse::from);
+        }
+
+        return ticketCommentRepository.findByTicketIdAndDeletedFalse(ticketId, pageable)
                 .map(CommentResponse::from);
     }
 
@@ -107,11 +112,13 @@ public class CommentService {
             Long commentId,
             CommentUpdateRequest request
     ) {
-        TicketComment comment = findCommentOrThrow(commentId);
+        TicketComment comment = findActiveCommentOrThrow(commentId);
 
         if (!comment.getAuthor().getId().equals(principal.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own comments");
         }
+
+        ensureTicketNotDeletedForCommentMutation(comment);
         //
         String oldContent = comment.getContent();
 
@@ -153,12 +160,13 @@ public class CommentService {
             AppUserPrincipal principal,
             Long commentId
     ) {
-        TicketComment comment = findCommentOrThrow(commentId);
+        TicketComment comment = findActiveCommentOrThrow(commentId);
 
         if (!comment.getAuthor().getId().equals(principal.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own comments");
         }
 
+        ensureTicketNotDeletedForCommentMutation(comment);
         //
         auditLogService.log(
                 AuditAction.DELETE,
@@ -168,11 +176,13 @@ public class CommentService {
                 Map.of(
                         "ticketId", comment.getTicket().getId(),
                         "commentGroupId", comment.getCommentGroupId().toString(),
-                        "version", comment.getCurrentVersion()
+                        "version", comment.getCurrentVersion(),
+                        "softDelete", true
                 )
         );
 
-        ticketCommentRepository.delete(comment);
+        comment.markDeleted();
+        ticketCommentRepository.save(comment);
     }
 
     @Transactional(readOnly = true)
@@ -185,7 +195,7 @@ public class CommentService {
             String sortBy,
             String sortDir
     ) {
-        TicketComment comment = findCommentOrThrow(commentId);
+        TicketComment comment = findCommentIncludingDeletedOrThrow(commentId);
         enforceTicketReadAccess(principal, comment.getTicket());
 
         Pageable pageable = buildVersionsPageable(page, size, sortBy, sortDir);
@@ -201,12 +211,21 @@ public class CommentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    private Ticket findTicketOrThrow(Long ticketId) {
+    private Ticket findActiveTicketOrThrow(Long ticketId) {
+        return ticketRepository.findByIdAndDeletedFalse(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+    }
+
+    private Ticket findTicketIncludingDeletedOrThrow(Long ticketId) {
         return ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
     }
 
-    private TicketComment findCommentOrThrow(Long commentId) {
+    private TicketComment findActiveCommentOrThrow(Long commentId) {
+        return ticketCommentRepository.findByIdAndDeletedFalse(commentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+    }
+    private TicketComment findCommentIncludingDeletedOrThrow(Long commentId) {
         return ticketCommentRepository.findById(commentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
     }
@@ -221,9 +240,18 @@ public class CommentService {
         }
     }
 
+    private void ensureTicketNotDeletedForCommentMutation(TicketComment comment) {
+        if (comment.getTicket().isDeleted()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cannot modify or delete a comment of a deleted ticket"
+            );
+        }
+    }
+
     private Pageable buildCommentsPageable(int page, int size, String sortBy, String sortDir) {
         if (page < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be positive");
         }
 
         if (size < 1 || size > 100) {
@@ -232,7 +260,7 @@ public class CommentService {
         //
         String effectiveSortBy = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
         if (!effectiveSortBy.equals("createdAt")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only createdAt sorting is allowed");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only 'created at' sorting is allowed");
         }
 
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDir)
@@ -245,7 +273,7 @@ public class CommentService {
 
     private Pageable buildVersionsPageable(int page, int size, String sortBy, String sortDir) {
         if (page < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be >= 0");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page index must be positive");
         }
 
         if (size < 1 || size > 100) {

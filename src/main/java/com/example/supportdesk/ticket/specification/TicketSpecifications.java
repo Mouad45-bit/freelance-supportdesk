@@ -8,6 +8,10 @@ import org.springframework.data.jpa.domain.Specification;
 public final class TicketSpecifications {
     private TicketSpecifications(){}
     //
+    public static Specification<Ticket> isNotDeleted(){
+        return (root, query, cb) -> cb.isFalse(root.get("deleted"));
+    }
+
     public static Specification<Ticket> hasStatus(TicketStatus status) {
         return (root, query, cb) ->
                 status == null ? null : cb.equal(root.get("status"), status);

@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity @Table(name = "ticket_comments")
@@ -25,6 +26,10 @@ public class TicketComment extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
     //
     public TicketComment(String content, AppUser author, Ticket ticket) {
         this.commentGroupId = UUID.randomUUID();
@@ -32,6 +37,7 @@ public class TicketComment extends BaseEntity {
         this.content = content;
         this.author = author;
         this.ticket = ticket;
+        this.deleted = false;
     }
 
     public boolean updateContent(String newContent) {
@@ -43,5 +49,10 @@ public class TicketComment extends BaseEntity {
         this.currentVersion = this.currentVersion + 1;
 
         return true;
+    }
+
+    public void markDeleted() {
+        this.deleted = true;
+        this.deletedAt = Instant.now();
     }
 }

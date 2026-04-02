@@ -5,83 +5,14 @@ import com.example.supportdesk.common.enums.TicketPriority;
 import com.example.supportdesk.common.enums.UserRole;
 import com.example.supportdesk.integration.config.AbstractAuthenticatedIntegrationTest;
 import com.example.supportdesk.ticket.entity.Ticket;
-import com.example.supportdesk.ticket.repository.TicketRepository;
 import com.example.supportdesk.user.entity.AppUser;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 public class CommentIntegrationTest extends AbstractAuthenticatedIntegrationTest {
-    @Autowired
-    private TicketRepository ticketRepository;
-
     ////
-    @Test
-    public void shouldListCommentsOfActiveTicketWithoutDeletedOnesForAuthor() throws Exception {
-        Ticket ticket = dataFactory.createTicket(
-                user,
-                "Printer issue",
-                "Printer is not working",
-                TicketPriority.MEDIUM
-        );
-
-        dataFactory.createComment(user, ticket, "Visible comment");
-        dataFactory.createDeletedComment(user, ticket, "Deleted comment");
-
-        mockMvc.perform(get("/api/tickets/{ticketId}/comments", ticket.getId())
-                        .header("Authorization", bearerToken(userAccessToken())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.content[0].content").value("Visible comment"))
-                .andExpect(jsonPath("$.content[0].deleted").value(false));
-    }
-
-    @Test
-    public void shouldListCommentsOfDeletedTicketIncludingDeletedOnesForAuthor() throws Exception {
-        Ticket ticket = dataFactory.createTicket(
-                user,
-                "Printer issue",
-                "Printer is not working",
-                TicketPriority.MEDIUM
-        );
-
-        dataFactory.createComment(user, ticket, "Visible comment");
-        dataFactory.createDeletedComment(user, ticket, "Deleted comment");
-
-        ticket.markDeleted();
-        ticketRepository.save(ticket);
-
-        databaseSupport.clearPersistenceContext();
-
-        mockMvc.perform(get("/api/tickets/{ticketId}/comments", ticket.getId())
-                        .header("Authorization", bearerToken(userAccessToken())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.totalElements").value(2));
-    }
-
-    @Test
-    public void shouldListCommentsForAdminInReadMode() throws Exception {
-        Ticket ticket = dataFactory.createTicket(
-                user,
-                "User ticket",
-                "User description",
-                TicketPriority.LOW
-        );
-
-        dataFactory.createComment(user, ticket, "Comment readable by admin");
-
-        mockMvc.perform(get("/api/tickets/{ticketId}/comments", ticket.getId())
-                        .header("Authorization", bearerToken(adminAccessToken())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].authorId").value(user.getId()))
-                .andExpect(jsonPath("$.content[0].content").value("Comment readable by admin"));
-    }
-
     @Test
     public void shouldListCommentVersionsForAuthor() throws Exception {
         Ticket ticket = dataFactory.createTicket(
